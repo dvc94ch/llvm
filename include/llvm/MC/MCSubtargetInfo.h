@@ -188,6 +188,14 @@ public:
   virtual std::string getSchedInfoStr(MCInst const &MCI) const {
     return {};
   }
+
+  ArrayRef<SubtargetFeatureKV> getCPUTable() const {
+    return ProcDesc;
+  }
+
+  ArrayRef<SubtargetFeatureKV> getFeatureTable() const {
+    return ProcFeatures;
+  }
 };
 
 } // end namespace llvm
