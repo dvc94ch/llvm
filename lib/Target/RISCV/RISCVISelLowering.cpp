@@ -82,6 +82,11 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
 
   setOperationAction(ISD::GlobalAddress, MVT::i32, Custom);
 
+  setOperationAction(ISD::CTPOP, MVT::i32, Expand);
+  setOperationAction(ISD::CTTZ, MVT::i32, Expand);
+  setOperationAction(ISD::CTLZ, MVT::i32, Expand);
+  setOperationAction(ISD::BSWAP, MVT::i32, Expand);
+
   setBooleanContents(ZeroOrOneBooleanContent);
 
   // Function alignments (log2)
