@@ -53,6 +53,28 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     return;
   }
 
+
+  SDLoc DL(Node);
+  unsigned Opcode = Node->getOpcode();
+  switch (Opcode) {
+  case ISD::FrameIndex: {
+    SDValue imm = CurDAG->getTargetConstant(0, DL, MVT::i32);
+    int FI = cast<FrameIndexSDNode>(Node)->getIndex();
+    SDValue TFI =
+      CurDAG->getTargetFrameIndex(FI, getTargetLowering()->getPointerTy(CurDAG->getDataLayout()));
+    unsigned Opc = RISCV::ADDI;
+    EVT VT = MVT::i32;
+
+    if(Node->hasOneUse()) { //don't create a new node just morph this one
+      CurDAG->SelectNodeTo(Node, Opc, VT, TFI, imm);
+      return;
+    }
+    ReplaceNode(Node, CurDAG->getMachineNode(Opc, DL, VT, TFI, imm));
+    return;
+  }
+  }//end special selections
+
+
   // Select the default instruction.
   SelectCode(Node);
 }
