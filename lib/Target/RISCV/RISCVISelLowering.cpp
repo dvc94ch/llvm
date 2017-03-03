@@ -87,6 +87,8 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::CTLZ, MVT::i32, Expand);
   setOperationAction(ISD::BSWAP, MVT::i32, Expand);
 
+  setMinimumJumpTableEntries(INT_MAX);
+
   setBooleanContents(ZeroOrOneBooleanContent);
 
   // Function alignments (log2)
