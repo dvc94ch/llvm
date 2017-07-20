@@ -836,6 +836,12 @@ if( MINGW )
   llvm_replace_compiler_option(CMAKE_CXX_FLAGS_RELEASE "-O3" "-O2")
 endif()
 
+if( "${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU" AND "${LLVM_NATIVE_ARCH}" MATCHES "Sparc" )
+  # gcc 4.x, 5.x (at least) generate bad code on sparc above -O0 when compiling
+  # llvm; notably llvm-tblgen consistently core dumps.
+  llvm_replace_compiler_option(CMAKE_CXX_FLAGS_RELEASE "-O3" "-O0")
+endif()
+
 # Put this before tblgen. Else we have a circular dependence.
 add_subdirectory(lib/Demangle)
 add_subdirectory(lib/Support)
