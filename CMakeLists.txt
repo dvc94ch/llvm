@@ -322,6 +322,7 @@ set(LLVM_ALL_TARGETS
   BPF
   Hexagon
   Lanai
+  JSBackend # @LOCALMOD
   Mips
   MSP430
   NVPTX
