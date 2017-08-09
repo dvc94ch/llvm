@@ -61,6 +61,7 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MachineInstr &MI = *II;
   MachineFunction &MF = *MI.getParent()->getParent();
   const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
+  const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   DebugLoc DL = MI.getDebugLoc();
 
   unsigned FrameReg = getFrameRegister(MF);
@@ -68,19 +69,45 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   int Offset = TFI->getFrameIndexReference(MF, FrameIndex, FrameReg);
   Offset += MI.getOperand(FIOperandNum + 1).getImm();
 
+  unsigned Reg = MI.getOperand(0).getReg();
+  assert(RISCV::GPRRegClass.contains(Reg) && "Unexpected register operand");
+
   if (!TFI->hasFP(MF)) {
     llvm_unreachable("eliminateFrameIndex currently requires hasFP");
   }
 
+  MachineBasicBlock &MBB = *MI.getParent();
+
   // If the offset fits in an immediate, then directly encode it
   if (isInt<12>(Offset)) {
-    MI.getOperand(FIOperandNum).ChangeToRegister(FrameReg, false);
-    MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
-    return;
+    switch (MI.getOpcode()) {
+    case RISCV::LW_FI:
+      BuildMI(MBB, II, DL, TII->get(RISCV::LW), Reg)
+          .addReg(FrameReg)
+          .addImm(Offset);
+      break;
+    case RISCV::SW_FI:
+      BuildMI(MBB, II, DL, TII->get(RISCV::SW))
+          .addReg(Reg, getKillRegState(MI.getOperand(0).isKill()))
+          .addReg(FrameReg)
+          .addImm(Offset);
+      break;
+    case RISCV::LEA_FI:
+      BuildMI(MBB, II, DL, TII->get(RISCV::ADDI), Reg)
+          .addReg(FrameReg)
+          .addImm(Offset);
+      break;
+    default:
+      llvm_unreachable("Unexpected opcode");
+    }
   } else {
     llvm_unreachable(
         "Frame offsets outside of the signed 12-bit range not supported");
   }
+
+  // Erase old instruction.
+  MBB.erase(II);
+  return;
 }
 
 unsigned RISCVRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
