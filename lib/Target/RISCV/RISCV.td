@@ -19,6 +19,9 @@ def RISCVInstrInfo : InstrInfo;
 def Feature64Bit   : SubtargetFeature<"64bit", "HasRV64", "true",
                                       "Implements RV64">;
 
+def FeatureM       : SubtargetFeature<"m", "HasM", "true",
+                                      "Implements M extension">;
+
 def : ProcessorModel<"generic-rv32", NoSchedModel, []>;
 
 def : ProcessorModel<"generic-rv64", NoSchedModel, [Feature64Bit]>;

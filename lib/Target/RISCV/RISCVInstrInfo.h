@@ -14,6 +14,7 @@
 #ifndef LLVM_LIB_TARGET_RISCV_RISCVINSTRINFO_H
 #define LLVM_LIB_TARGET_RISCV_RISCVINSTRINFO_H
 
+#include "RISCV.h"
 #include "RISCVRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
 
@@ -24,9 +25,10 @@ namespace llvm {
 
 class RISCVInstrInfo : public RISCVGenInstrInfo {
   const RISCVRegisterInfo RI;
+  const RISCVSubtarget &Subtarget;
 
 public:
-  RISCVInstrInfo();
+  explicit RISCVInstrInfo(const RISCVSubtarget &STI);
 
   const RISCVRegisterInfo &getRegisterInfo() const { return RI; }
 

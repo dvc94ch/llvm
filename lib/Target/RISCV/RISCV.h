@@ -22,6 +22,7 @@
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
+class RISCVSubtarget;
 class RISCVTargetMachine;
 class AsmPrinter;
 class MCContext;
