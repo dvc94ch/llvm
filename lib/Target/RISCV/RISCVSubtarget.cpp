@@ -26,7 +26,19 @@ using namespace llvm;
 
 void RISCVSubtarget::anchor() {}
 
+RISCVSubtarget &RISCVSubtarget::initializeSubtargetDependencies(StringRef CPU,
+                                                                StringRef FS) {
+  if (CPU.empty()){
+    CPU = "generic-rv32";
+  }
+
+  ParseSubtargetFeatures(CPU, FS);
+  return *this;
+}
+
 RISCVSubtarget::RISCVSubtarget(const Triple &TT, const std::string &CPU,
                                const std::string &FS, const TargetMachine &TM)
-    : RISCVGenSubtargetInfo(TT, CPU, FS), InstrInfo(), FrameLowering(*this),
-      TLInfo(TM, *this), HasRV64(false) {}
+  : RISCVGenSubtargetInfo(TT, CPU, FS),
+    InstrInfo(initializeSubtargetDependencies(CPU, FS)),
+    FrameLowering(*this), TLInfo(TM, *this),
+    HasRV64(false), HasM(false) {}

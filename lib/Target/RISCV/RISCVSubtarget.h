@@ -35,6 +35,13 @@ class RISCVSubtarget : public RISCVGenSubtargetInfo {
   RISCVTargetLowering TLInfo;
   SelectionDAGTargetInfo TSInfo;
   bool HasRV64;
+  bool HasM;
+
+private:
+  /// initializeSubtargetDependencies - Initializes using CPU and the
+  /// passed in feature string so that we can use initializer lists for
+  /// subtarget initialization.
+  RISCVSubtarget &initializeSubtargetDependencies(StringRef CPU, StringRef FS);
 
 public:
   // Initializes the data members to match that of the specified triple.
@@ -59,6 +66,7 @@ public:
     return &TSInfo;
   }
   bool is64Bit() const { return HasRV64; }
+  bool hasM() const { return HasM; }
 };
 } // End llvm namespace
 

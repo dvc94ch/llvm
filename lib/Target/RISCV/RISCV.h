@@ -23,6 +23,7 @@
 
 namespace llvm {
 class AsmPrinter;
+class RISCVSubtarget;
 class RISCVTargetMachine;
 class MCContext;
 class MCInst;

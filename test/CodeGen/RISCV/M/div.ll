@@ -1,0 +1,76 @@
+; RUN: llc -mtriple=riscv32 -mattr=m -verify-machineinstrs < %s | FileCheck %s
+
+define i32 @udiv(i32 %a, i32 %b) {
+; CHECK-LABEL: udiv:
+; CHECK: divu a0, a0, a1
+; CHECK: jalr zero, ra, 0
+  %1 = udiv i32 %a, %b
+  ret i32 %1
+}
+
+define i32 @udiv_constant(i32 %a) {
+; CHECK-LABEL: udiv_constant:
+; CHECK: jalr zero, ra, 0
+  %1 = udiv i32 %a, 5
+  ret i32 %1
+}
+
+define i32 @udiv_pow2(i32 %a) {
+; CHECK-LABEL: udiv_pow2:
+; CHECK: srli a0, a0, 3
+  %1 = udiv i32 %a, 8
+  ret i32 %1
+}
+
+define i64 @udiv64(i64 %a, i64 %b) {
+; CHECK-LABEL: udiv64:
+; CHECK: jalr zero, ra, 0
+  %1 = udiv i64 %a, %b
+  ret i64 %1
+}
+
+define i64 @udiv64_constant(i64 %a) {
+; CHECK-LABEL: udiv64_constant:
+; CHECK: jalr zero, ra, 0
+  %1 = udiv i64 %a, 5
+  ret i64 %1
+}
+
+define i32 @sdiv(i32 %a, i32 %b) {
+; CHECK-LABEL: sdiv:
+; CHECK: div a0, a0, a1
+; CHECK: jalr zero, ra, 0
+  %1 = sdiv i32 %a, %b
+  ret i32 %1
+}
+
+define i32 @sdiv_constant(i32 %a) {
+; CHECK-LABEL: sdiv_constant:
+; CHECK: jalr zero, ra, 0
+  %1 = sdiv i32 %a, 5
+  ret i32 %1
+}
+
+define i32 @sdiv_pow2(i32 %a) {
+; CHECK-LABEL: sdiv_pow2
+; CHECK: srai a1, a0, 31
+; CHECK: srli a1, a1, 29
+; CHECK: add a0, a0, a1
+; CHECK: srai a0, a0, 3
+  %1 = sdiv i32 %a, 8
+  ret i32 %1
+}
+
+define i64 @sdiv64(i64 %a, i64 %b) {
+; CHECK-LABEL: sdiv64:
+; CHECK: jalr zero, ra, 0
+  %1 = sdiv i64 %a, %b
+  ret i64 %1
+}
+
+define i64 @sdiv64_constant(i64 %a) {
+; CHECK-LABEL: sdiv64_constant:
+; CHECK: jalr zero, ra, 0
+  %1 = sdiv i64 %a, 5
+  ret i64 %1
+}
