@@ -90,6 +90,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::CTTZ, MVT::i32, Expand);
   setOperationAction(ISD::CTLZ, MVT::i32, Expand);
   setOperationAction(ISD::CTPOP, MVT::i32, Expand);
+  setOperationAction(ISD::BSWAP, MVT::i32, Expand);
 
   setOperationAction(ISD::GlobalAddress, MVT::i32, Custom);
 
