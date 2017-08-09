@@ -361,3 +361,14 @@ def : Pat<(simm12:$imm), (ADDI X0_32, simm12:$imm)>;
 
 // 32-bit immediate
 def : Pat<(i32 imm:$imm), (ADDI (LUI (HI20 imm:$imm)), (LO12Sext imm:$imm))>;
+
+
+def MUL     : ALU_rr<0b0000001, 0b000, "mul", mul>;
+def MULH    : ALU_rr<0b0000001, 0b001, "mulh", mulhs>;
+// NOTE: no corresponding llvm ir instruction
+def MULHSU  : ALU_rr<0b0000001, 0b010, "mulhsu", mulhs>;
+def MULHU   : ALU_rr<0b0000001, 0b011, "mulhu", mulhu>;
+def DIV     : ALU_rr<0b0000001, 0b100, "div", sdiv>;
+def DIVU    : ALU_rr<0b0000001, 0b101, "divu", udiv>;
+def REM     : ALU_rr<0b0000001, 0b110, "rem", srem>;
+def REMU    : ALU_rr<0b0000001, 0b111, "remu", urem>;

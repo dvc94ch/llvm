@@ -35,6 +35,7 @@ class RISCVSubtarget : public RISCVGenSubtargetInfo {
   RISCVTargetLowering TLInfo;
   SelectionDAGTargetInfo TSInfo;
   bool HasRV64;
+  bool HasM;
 
 public:
   // Initializes the data members to match that of the specified triple.
@@ -59,6 +60,7 @@ public:
     return &TSInfo;
   }
   bool is64Bit() const { return HasRV64; }
+  bool hasM() const { return HasM; }
 };
 } // End llvm namespace
 
