@@ -54,11 +54,11 @@ RISCVTargetMachine::RISCVTargetMachine(const Target &T, const Triple &TT,
                                        StringRef CPU, StringRef FS,
                                        const TargetOptions &Options,
                                        Optional<Reloc::Model> RM,
-                                       Optional<CodeModel::Model> CM,
-                                       CodeGenOpt::Level OL, bool JIT)
+                                       CodeModel::Model CM,
+                                       CodeGenOpt::Level OL)
     : LLVMTargetMachine(T, computeDataLayout(TT), TT, CPU, FS, Options,
                         getEffectiveRelocModel(TT, RM),
-                        getEffectiveCodeModel(CM), OL),
+                        CM, OL),
       TLOF(make_unique<TargetLoweringObjectFileELF>()),
       Subtarget(TT, CPU, FS, *this) {
   initAsmInfo();
