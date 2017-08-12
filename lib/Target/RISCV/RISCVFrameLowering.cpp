@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/RegisterScavenging.h"
 
 using namespace llvm;
 
@@ -87,16 +88,28 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   if (StackSize == 0 && !MFI.adjustsStack())
     return;
 
-  if (!isInt<12>(StackSize)) {
-    llvm_unreachable("Stack adjustment won't fit in signed 12-bit immediate");
-  }
-
   // Allocate space on the stack if necessary
   if (StackSize != 0) {
-    BuildMI(MBB, MBBI, DL, TII->get(RISCV::ADDI), SPReg)
+    if (isInt<12>(StackSize)) {
+      BuildMI(MBB, MBBI, DL, TII->get(RISCV::ADDI), SPReg)
         .addReg(SPReg)
         .addImm(-StackSize)
         .setMIFlag(MachineInstr::FrameSetup);
+    } else {
+      auto &MRI = MF.getRegInfo();
+      unsigned Reg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
+      BuildMI(MBB, MBBI, DL, TII->get(RISCV::LUI), Reg)
+        .addImm(StackSize & 0xFFFFF000)
+        .setMIFlag(MachineInstr::FrameSetup);
+      BuildMI(MBB, MBBI, DL, TII->get(RISCV::ADDI), Reg)
+        .addReg(Reg)
+        .addImm(StackSize & 0xFFF)
+        .setMIFlag(MachineInstr::FrameSetup);
+      BuildMI(MBB, MBBI, DL, TII->get(RISCV::SUB), SPReg)
+        .addReg(SPReg)
+        .addReg(Reg)
+        .setMIFlag(MachineInstr::FrameSetup);
+    }
   }
 
   // The frame pointer is callee-saved, and code has been generated for us to
@@ -109,10 +122,28 @@ void RISCVFrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   // Generate new FP
-  BuildMI(MBB, MBBI, DL, TII->get(RISCV::ADDI), FPReg)
+  if (isInt<12>(StackSize)) {
+    BuildMI(MBB, MBBI, DL, TII->get(RISCV::ADDI), FPReg)
       .addReg(SPReg)
       .addImm(StackSize)
       .setMIFlag(MachineInstr::FrameSetup);
+  } else {
+    // FIXME: Reg needs to be loaded twice since we don't
+    // know if x5 was modified when saving fp to the stack.
+    auto &MRI = MF.getRegInfo();
+    unsigned Reg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
+    BuildMI(MBB, MBBI, DL, TII->get(RISCV::LUI), Reg)
+      .addImm(StackSize & 0xFFFFF000)
+      .setMIFlag(MachineInstr::FrameSetup);
+    BuildMI(MBB, MBBI, DL, TII->get(RISCV::ADDI), Reg)
+      .addReg(Reg)
+      .addImm(StackSize & 0xFFF)
+      .setMIFlag(MachineInstr::FrameSetup);
+    BuildMI(MBB, MBBI, DL, TII->get(RISCV::ADD), FPReg)
+      .addReg(SPReg)
+      .addReg(Reg)
+      .setMIFlag(MachineInstr::FrameSetup);
+  }
 }
 
 void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
@@ -151,15 +182,29 @@ void RISCVFrameLowering::emitEpilogue(MachineFunction &MF,
         .setMIFlag(MachineInstr::FrameDestroy);
   }
 
-  if (!isInt<12>(StackSize)) {
-    llvm_unreachable("Stack adjustment won't fit in signed 12-bit immediate");
-  }
-
   // Deallocate stack
-  BuildMI(MBB, MBBI, DL, TII->get(RISCV::ADDI), SPReg)
-      .addReg(SPReg)
-      .addImm(StackSize)
-      .setMIFlag(MachineInstr::FrameDestroy);
+  if (StackSize != 0) {
+    if (isInt<12>(StackSize)) {
+      BuildMI(MBB, MBBI, DL, TII->get(RISCV::ADDI), SPReg)
+        .addReg(SPReg)
+        .addImm(StackSize)
+        .setMIFlag(MachineInstr::FrameDestroy);
+    } else {
+      auto &MRI = MF.getRegInfo();
+      unsigned Reg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
+      BuildMI(MBB, MBBI, DL, TII->get(RISCV::LUI), Reg)
+        .addImm(StackSize & 0xFFFFF000)
+        .setMIFlag(MachineInstr::FrameDestroy);
+      BuildMI(MBB, MBBI, DL, TII->get(RISCV::ADDI), Reg)
+        .addReg(Reg)
+        .addImm(StackSize & 0xFFF)
+        .setMIFlag(MachineInstr::FrameDestroy);
+      BuildMI(MBB, MBBI, DL, TII->get(RISCV::ADD), SPReg)
+        .addReg(SPReg)
+        .addReg(Reg)
+        .setMIFlag(MachineInstr::FrameDestroy);
+    }
+  }
 }
 
 void RISCVFrameLowering::determineCalleeSaves(MachineFunction &MF,
@@ -167,5 +212,22 @@ void RISCVFrameLowering::determineCalleeSaves(MachineFunction &MF,
                                               RegScavenger *RS) const {
   TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
   SavedRegs.set(RISCV::X8_32);
+
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  // The CSR spill slots have not been allocated yet, so estimateStackSize
+  // won't include them.
+  uint64_t MaxSPOffset = MFI.estimateStackSize(MF) + 8 * SavedRegs.count();
+
+  // Allocate emergency spill slot when necessary.
+  // TODO: Don't allocate when a spill register is available.
+  if (!isInt<12>(MaxSPOffset)) {
+    const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
+    const TargetRegisterClass &RC = RISCV::GPRRegClass;
+    unsigned Size = TRI->getSpillSize(RC);
+    unsigned Align = TRI->getSpillAlignment(RC);
+    int FI = MFI.CreateSpillStackObject(Size, Align);
+    RS->addScavengingFrameIndex(FI);
+  }
+
   return;
 }

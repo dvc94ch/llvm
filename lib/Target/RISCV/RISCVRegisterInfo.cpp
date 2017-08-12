@@ -121,8 +121,35 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       llvm_unreachable("Unexpected opcode");
     }
   } else {
-    llvm_unreachable(
-        "Frame offsets outside of the signed 12-bit range not supported");
+    auto &MRI = MF.getRegInfo();
+    unsigned OffsetReg = MRI.createVirtualRegister(&RISCV::GPRRegClass);
+
+    BuildMI(MBB, II, DL, TII->get(RISCV::LUI), OffsetReg)
+        .addImm(Offset & 0xFFFFF000);
+    BuildMI(MBB, II, DL, TII->get(RISCV::ADD), OffsetReg)
+        .addReg(OffsetReg)
+        .addReg(FrameReg);
+
+    switch (MI.getOpcode()) {
+    case RISCV::LW_FI:
+      BuildMI(MBB, II, DL, TII->get(RISCV::LW), Reg)
+          .addReg(OffsetReg)
+          .addImm(Offset & 0xFFF);
+      break;
+    case RISCV::SW_FI:
+      BuildMI(MBB, II, DL, TII->get(RISCV::SW))
+          .addReg(Reg, getKillRegState(MI.getOperand(0).isKill()))
+          .addReg(OffsetReg)
+          .addImm(Offset & 0xFFF);
+      break;
+    case RISCV::LEA_FI:
+      BuildMI(MBB, II, DL, TII->get(RISCV::ADDI), Reg)
+          .addReg(OffsetReg)
+          .addImm(Offset & 0xFFF);
+      break;
+    default:
+      llvm_unreachable("Unexpected opcode");
+    }
   }
 
   // Erase old instruction.

@@ -36,3 +36,38 @@ define i32 @test() {
 declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i32, i1)
 
 declare void @test1(i8*)
+
+
+%struct.large_t = type { [4096 x i8] }
+
+; Function Attrs: nounwind uwtable
+define i32 @test2() {
+; CHECK-LABEL: test2:
+;; Adjust stack pointer
+;; 4096 + ?? + fp
+; CHECK: lui a0, 4096
+; CHECK: addi a0, a0, 8
+; CHECK: sub sp, sp, a0
+;; Save frame pointer (s0)
+; CHECK: lui a0, 4096
+; CHECK: add a0, a0, sp
+; CHECK: sw s0, 4(a0)
+;; Adjust frame pointer (s0)
+; CHECK: lui a0, 4096
+; CHECK: addi a0, a0, 8
+; CHECK: add s0, sp, a0
+;; Set return value to 0
+; CHECK: addi a0, zero, 0
+;; Load frame pointer (s0)
+; CHECK: lui a1, 4096
+; CHECK: add a1, a1, sp
+; CHECK: lw s0, 4(a1)
+;; Reset stack pointer
+; CHECK: lui a1, 4096
+; CHECK: addi a1, a1, 8
+; CHECK: add sp, sp, a1
+;; Return
+; CHECK: jalr zero, ra, 0
+  %large = alloca %struct.large_t, align 4
+  ret i32 0
+}
