@@ -379,3 +379,31 @@ def DIV     : ALU_rr<0b0000001, 0b100, "div", sdiv>;
 def DIVU    : ALU_rr<0b0000001, 0b101, "divu", udiv>;
 def REM     : ALU_rr<0b0000001, 0b110, "rem", srem>;
 def REMU    : ALU_rr<0b0000001, 0b111, "remu", urem>;
+
+// Privileged Instructions
+class RET_rr<bits<7> funct7, string OpcodeStr> :
+      FR<funct7, 0b000, 0b1110011, (outs GPR:$rd),
+         (ins GPR:$rs1, GPR:$rs2),
+         OpcodeStr, []>
+{
+  let rs2 = 0b00010;
+  let rs1 = 0;
+  let rd = 0;
+}
+
+def URET : RET_rr<0b0000000, "uret">;
+def SRET : RET_rr<0b0001000, "sret">;
+def MRET : RET_rr<0b0011000, "mret">;
+
+def WFI : FR<0b0001000, 0b000, 0b1110011, (outs),
+             (ins), "wfi", []> {
+  let rs2 = 0b00101;
+  let rs1 = 0;
+  let rd = 0;
+}
+
+def SFENCEVM : FR<0b0001001, 0b000, 0b1110011, (outs),
+                  (ins GPR:$rs1, GPR:$rs2),
+                  "sfence.vma\t$rs1, $rs2", []> {
+  let rd = 0;
+}
