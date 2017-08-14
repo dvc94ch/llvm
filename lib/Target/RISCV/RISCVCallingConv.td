@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 // RISCV 32-bit C return-value convention.
-def RetCC_RISCV32 : CallingConv<[CCIfType<[i32], CCAssignToReg<[X10_32, X11_32]>>]>;
+def RetCC_RISCV32 : CallingConv<[CCIfType<[i32], CCAssignToReg<[X10_32, X11_32, X12_32, X13_32]>>]>;
 
 // RISCV 32-bit C Calling convention.
 def CC_RISCV32 : CustomCallingConv;

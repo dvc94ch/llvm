@@ -360,3 +360,8 @@ define i32 @caller_large_struct_ret() {
   %6 = add i32 %3, %5
   ret i32 %6
 }
+
+define i128 @caller_i128_ret() {
+; CHECK-LABEL: caller_i128_ret:
+  ret i128 0
+}
