@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "RISCVMachineFunctionInfo.h"
 #include "RISCVRegisterInfo.h"
 #include "RISCV.h"
 #include "RISCVSubtarget.h"
@@ -60,6 +61,7 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   MachineInstr &MI = *II;
   MachineFunction &MF = *MI.getParent()->getParent();
+  RISCVMachineFunctionInfo *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
   MachineFrameInfo &MFI = MF.getFrameInfo();
   const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
@@ -87,6 +89,7 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     Offset += MF.getFrameInfo().getStackSize();
   } else {
     FrameReg = getFrameRegister(MF);
+    Offset += RVFI->getVarArgsSaveSize();
   }
 
   unsigned Reg = MI.getOperand(0).getReg();
