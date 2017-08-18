@@ -17,4 +17,4 @@ set(LLVM_XRAY_TOOLS
   xray-graph-diff.cc
   xray-registry.cc)
 
-# add_llvm_tool(llvm-xray llvm-xray.cc ${LLVM_XRAY_TOOLS})
+add_llvm_tool(llvm-xray llvm-xray.cc ${LLVM_XRAY_TOOLS})
