@@ -97,6 +97,14 @@ def simm21_lsb0 : Operand<OtherVT> {
   let DecoderMethod = "decodeSImmOperandAndLsl1<21>";
 }
 
+// Addressing modes
+def ADDRii : ComplexPattern<i32, 2, "SelectADDRii", [add, frameindex], []>;
+
+// Address operands
+def MEMii : Operand<i32> {
+  let MIOperandInfo = (ops i32imm, i32imm);
+}
+
 // Extract least significant 12 bits from an immediate value and sign extend
 // them.
 def LO12Sext : SDNodeXForm<imm, [{
@@ -224,6 +232,9 @@ defm : LD_Pat<load, LW>;
 defm : LD_Pat<zextloadi8, LBU>;
 defm : LD_Pat<zextloadi16, LHU>;
 
+def LW_FI : Pseudo<(outs GPR:$dst), (ins MEMii:$addr),
+                 [(set GPR:$dst, (load ADDRii:$addr))]>;
+
 // Operands for stores are in the order srcreg, base, offset rather than
 // reflecting the order these fields are specified in the instruction
 // encoding.
@@ -247,6 +258,9 @@ defm : ST_Pat<truncstorei8, SB>;
 defm : ST_Pat<truncstorei16, SH>;
 defm : ST_Pat<store, SW>;
 
+def SW_FI : Pseudo<(outs), (ins GPR:$src, MEMii:$addr),
+                   [(store GPR:$src, ADDRii:$addr)]>;
+
 class ALU_ri<bits<3> funct3, string OpcodeStr, SDPatternOperator OpNode> :
       FI<funct3, 0b0010011, (outs GPR:$rd), (ins GPR:$rs1, simm12:$imm12),
          OpcodeStr#"\t$rd, $rs1, $imm12", [(set GPR:$rd, (OpNode GPR:$rs1, simm12:$imm12))]>
@@ -259,6 +273,10 @@ def SLTIU : ALU_ri<0b011, "sltiu", setult>;
 def XORI  : ALU_ri<0b100, "xori", xor>;
 def ORI   : ALU_ri<0b110, "ori", or>;
 def ANDI  : ALU_ri<0b111, "andi", and>;
+
+// Add with a frameindex, used to legalize frameindex copies and necessary to 
+// keep tblgen happy
+def LEA_FI : Pseudo<(outs GPR:$dst), (ins MEMii:$addr), [(set GPR:$dst, ADDRii:$addr)]>;
 
 class SHIFT32_ri<bit arithshift, bits<3> funct3, string OpcodeStr, SDPatternOperator OpNode> :
       FI32Shift<arithshift, funct3, 0b0010011, (outs GPR:$rd), (ins GPR:$rs1, uimm5:$shamt),
