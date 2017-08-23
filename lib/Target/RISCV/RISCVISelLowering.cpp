@@ -48,11 +48,15 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   setStackPointerRegisterToSaveRestore(RISCV::X2_32);
 
   // TODO: add all necessary setOperationAction calls
+  setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Expand);
 
   setOperationAction(ISD::BR_JT, MVT::Other, Expand);
   setOperationAction(ISD::BR_CC, MVT::i32, Expand);
   setOperationAction(ISD::SELECT_CC, MVT::i32, Custom);
   setOperationAction(ISD::SELECT, MVT::i32, Expand);
+
+  setOperationAction(ISD::STACKSAVE, MVT::Other, Expand);
+  setOperationAction(ISD::STACKRESTORE, MVT::Other, Expand);
 
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i1, Expand);
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i8, Expand);
