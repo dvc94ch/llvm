@@ -337,7 +337,7 @@ let rs1=0, rd=0 in {
   def ECALL  : FI<0b000, 0b1110011, (outs), (ins), "ecall", []> {
     let imm12=0;
   }
-  def EBREAK : FI<0b000, 0b1110011, (outs), (ins), "ebreak", []> {
+  def EBREAK : FI<0b000, 0b1110011, (outs), (ins), "ebreak", [(trap)]> {
     let imm12=1;
   }
 }
