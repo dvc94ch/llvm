@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/RISCVBaseInfo.h"
+#include "MCTargetDesc/RISCVMCExpr.h"
 #include "MCTargetDesc/RISCVMCTargetDesc.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -53,6 +54,7 @@ class RISCVAsmParser : public MCTargetAsmParser {
   OperandMatchResultTy parseImmediate(OperandVector &Operands);
   OperandMatchResultTy parseRegister(OperandVector &Operands);
   OperandMatchResultTy parseMemOpBaseReg(OperandVector &Operands);
+  OperandMatchResultTy parseOperandWithModifier(OperandVector &Operands);
 
   bool parseOperand(OperandVector &Operands);
 
@@ -63,6 +65,10 @@ public:
 #include "RISCVGenAsmMatcher.inc"
 #undef GET_OPERAND_DIAGNOSTIC_TYPES
   };
+
+  static bool classifySymbolRef(const MCExpr *Expr,
+                                RISCVMCExpr::VariantKind &Kind,
+                                int64_t &Addend);
 
   RISCVAsmParser(const MCSubtargetInfo &STI, MCAsmParser &Parser,
                  const MCInstrInfo &MII, const MCTargetOptions &Options)
@@ -158,7 +164,16 @@ public:
   }
 
   bool isSImm12() const {
-    return (isConstantImm() && isInt<12>(getConstantImm()));
+    if (isConstantImm()) {
+      return isInt<12>(getConstantImm());
+    } else if (isImm()) {
+      RISCVMCExpr::VariantKind VK;
+      int64_t Addend;
+      if (!RISCVAsmParser::classifySymbolRef(getImm(), VK, Addend))
+        return false;
+      return VK == RISCVMCExpr::VK_RISCV_LO;
+    }
+    return false;
   }
 
   bool isUImm12() const {
@@ -166,15 +181,38 @@ public:
   }
 
   bool isSImm13Lsb0() const {
-    return (isConstantImm() && isShiftedInt<12, 1>(getConstantImm()));
+    if (isConstantImm()) {
+      return isShiftedInt<12, 1>(getConstantImm());
+    } else if (isImm()) {
+      RISCVMCExpr::VariantKind VK;
+      int64_t Addend;
+      return RISCVAsmParser::classifySymbolRef(getImm(), VK, Addend);
+    }
+    return false;
   }
 
   bool isUImm20() const {
-    return (isConstantImm() && isUInt<20>(getConstantImm()));
+    if (isConstantImm()) {
+      return isUInt<20>(getConstantImm());
+    } else if (isImm()) {
+      RISCVMCExpr::VariantKind VK;
+      int64_t Addend;
+      if (!RISCVAsmParser::classifySymbolRef(getImm(), VK, Addend))
+        return false;
+      return VK == RISCVMCExpr::VK_RISCV_HI || VK == RISCVMCExpr::VK_RISCV_PCREL_HI;
+    }
+    return false;
   }
 
   bool isSImm21Lsb0() const {
-    return (isConstantImm() && isShiftedInt<20, 1>(getConstantImm()));
+    if (isConstantImm()) {
+      return isShiftedInt<20, 1>(getConstantImm());
+    } else if (isImm()) {
+      RISCVMCExpr::VariantKind VK;
+      int64_t Addend;
+      return RISCVAsmParser::classifySymbolRef(getImm(), VK, Addend);
+    }
+    return false;
   }
 
   /// getStartLoc - Gets location of the first token of this operand
@@ -230,8 +268,13 @@ public:
   }
 
   static std::unique_ptr<RISCVOperand> createImm(const MCExpr *Val, SMLoc S,
-                                                 SMLoc E) {
+                                                 SMLoc E, MCContext &Ctx) {
     auto Op = make_unique<RISCVOperand>(Immediate);
+    if (const RISCVMCExpr *RE = dyn_cast<RISCVMCExpr>(Val)) {
+      int64_t Res;
+      if (RE->evaluateAsConstant(Res))
+        Val = MCConstantExpr::create(Res, Ctx);
+    }
     Op->Imm.Val = Val;
     Op->StartLoc = S;
     Op->EndLoc = E;
@@ -407,9 +450,51 @@ OperandMatchResultTy RISCVAsmParser::parseImmediate(OperandVector &Operands) {
     Res = MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_None, getContext());
     break;
   }
+  case AsmToken::Percent:
+    return parseOperandWithModifier(Operands);
   }
 
-  Operands.push_back(RISCVOperand::createImm(Res, S, E));
+  Operands.push_back(RISCVOperand::createImm(Res, S, E, getContext()));
+  return MatchOperand_Success;
+}
+
+OperandMatchResultTy
+RISCVAsmParser::parseOperandWithModifier(OperandVector &Operands) {
+  SMLoc S = getLoc();
+  SMLoc E = SMLoc::getFromPointer(S.getPointer() - 1);
+
+  if (getLexer().getKind() != AsmToken::Percent) {
+    Error(getLoc(), "expected '%' for operand modifier");
+    return MatchOperand_ParseFail;
+  }
+
+  getParser().Lex(); // Eat '%'
+
+  if (getLexer().getKind() != AsmToken::Identifier) {
+    Error(getLoc(), "expected valid identifier for operand modifier");
+    return MatchOperand_ParseFail;
+  }
+  StringRef Identifier = getParser().getTok().getString();
+  RISCVMCExpr::VariantKind VK = RISCVMCExpr::getVariantKindForName(Identifier);
+  if (VK == RISCVMCExpr::VK_RISCV_None) {
+    Error(getLoc(), "unrecognized operand modifier");
+    return MatchOperand_ParseFail;
+  }
+
+  getParser().Lex(); // Eat the identifier
+  if (getLexer().getKind() != AsmToken::LParen) {
+    Error(getLoc(), "expected '('");
+    return MatchOperand_ParseFail;
+  }
+  getParser().Lex(); // Eat '('
+
+  const MCExpr *SubExpr;
+  if (getParser().parseParenExpression(SubExpr, E)) {
+    return MatchOperand_ParseFail;
+  }
+
+  const MCExpr *ModExpr = RISCVMCExpr::create(SubExpr, VK, getContext());
+  Operands.push_back(RISCVOperand::createImm(ModExpr, S, E, getContext()));
   return MatchOperand_Success;
 }
 
@@ -492,6 +577,54 @@ bool RISCVAsmParser::ParseInstruction(ParseInstructionInfo &Info,
 
   getParser().Lex(); // Consume the EndOfStatement.
   return false;
+}
+
+bool RISCVAsmParser::classifySymbolRef(const MCExpr *Expr,
+                                       RISCVMCExpr::VariantKind &Kind,
+                                       int64_t &Addend) {
+  Kind = RISCVMCExpr::VK_RISCV_None;
+  Addend = 0;
+
+  if (const RISCVMCExpr *RE = dyn_cast<RISCVMCExpr>(Expr)) {
+    Kind = RE->getKind();
+    Expr = RE->getSubExpr();
+  }
+
+  assert(!isa<MCConstantExpr>(Expr) &&
+         "simple constants should have been evaluated already");
+
+  // It's a simple symbol reference with no addend.
+  if (isa<MCSymbolRefExpr>(Expr))
+    return true;
+
+  const MCBinaryExpr *BE = dyn_cast<MCBinaryExpr>(Expr);
+  if (!BE)
+    return false;
+
+  if (!isa<MCSymbolRefExpr>(BE->getLHS()))
+    return false;
+
+  if (BE->getOpcode() != MCBinaryExpr::Add &&
+      BE->getOpcode() != MCBinaryExpr::Sub)
+    return false;
+
+  // We are able to support the subtraction of two symbol references
+  if (BE->getOpcode() == MCBinaryExpr::Sub &&
+      isa<MCSymbolRefExpr>(BE->getRHS()))
+    return true;
+
+  // See if the addend is is a constant, otherwise there's more going
+  // on here than we can deal with.
+  auto AddendExpr = dyn_cast<MCConstantExpr>(BE->getRHS());
+  if (!AddendExpr)
+    return false;
+
+  Addend = AddendExpr->getValue();
+  if (BE->getOpcode() == MCBinaryExpr::Sub)
+    Addend = -Addend;
+
+  // It's some symbol reference + a constant addend
+  return Kind != RISCVMCExpr::VK_RISCV_Invalid;
 }
 
 bool RISCVAsmParser::ParseDirective(AsmToken DirectiveID) { return true; }
