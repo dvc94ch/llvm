@@ -62,6 +62,7 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   MachineInstr &MI = *II;
   MachineFunction &MF = *MI.getParent()->getParent();
+  const auto &Subtarget = MF.getSubtarget<RISCVSubtarget>();
   RISCVMachineFunctionInfo *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
   MachineFrameInfo &MFI = MF.getFrameInfo();
   MachineRegisterInfo &MRI = MF.getRegInfo();
@@ -125,14 +126,20 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     FrameRegFlags = RegState::Kill;
   }
 
+  unsigned Opc;
+
   switch (MI.getOpcode()) {
-  case RISCV::LW_FI:
-    BuildMI(MBB, II, DL, TII->get(RISCV::LW), Reg)
+  default:
+    llvm_unreachable("Unexpected opcode");
+  case RISCV::LdXLEN_FI:
+    Opc = Subtarget.is64Bit() ? RISCV::LD : RISCV::LW;
+    BuildMI(MBB, II, DL, TII->get(Opc), Reg)
         .addReg(FrameReg, FrameRegFlags)
         .addImm(Offset);
     break;
-  case RISCV::SW_FI:
-    BuildMI(MBB, II, DL, TII->get(RISCV::SW))
+  case RISCV::StXLEN_FI:
+    Opc = Subtarget.is64Bit() ? RISCV::SD : RISCV::SW;
+    BuildMI(MBB, II, DL, TII->get(Opc))
         .addReg(Reg, getKillRegState(MI.getOperand(0).isKill()))
         .addReg(FrameReg, FrameRegFlags | RegState::Kill)
         .addImm(Offset);
@@ -142,8 +149,6 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
         .addReg(FrameReg, FrameRegFlags)
         .addImm(Offset);
     break;
-  default:
-    llvm_unreachable("Unexpected opcode");
   }
 
   // Erase old instruction.
