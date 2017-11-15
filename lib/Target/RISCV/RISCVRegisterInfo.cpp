@@ -57,20 +57,41 @@ const uint32_t *RISCVRegisterInfo::getNoPreservedMask() const {
 void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                             int SPAdj, unsigned FIOperandNum,
                                             RegScavenger *RS) const {
-  // TODO: this implementation is a temporary placeholder which does just
-  // enough to allow other aspects of code generation to be tested
-
   assert(SPAdj == 0 && "Unexpected non-zero SPAdj value");
 
   MachineInstr &MI = *II;
   MachineFunction &MF = *MI.getParent()->getParent();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
   const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
+  const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   DebugLoc DL = MI.getDebugLoc();
 
-  unsigned FrameReg = getFrameRegister(MF);
   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
-  int Offset = TFI->getFrameIndexReference(MF, FrameIndex, FrameReg);
-  Offset += MI.getOperand(FIOperandNum + 1).getImm();
+  unsigned FrameReg;
+  int Offset = MF.getFrameInfo().getObjectOffset(FrameIndex) +
+               MI.getOperand(FIOperandNum + 1).getImm();
+
+  // Callee-saved registers should be referenced relative to the stack
+  // pointer (positive offset), otherwise use the frame pointer (negative
+  // offset).
+  const std::vector<CalleeSavedInfo> &CSI = MFI.getCalleeSavedInfo();
+  int MinCSFI = 0;
+  int MaxCSFI = -1;
+
+  if (CSI.size()) {
+    MinCSFI = CSI[0].getFrameIdx();
+    MaxCSFI = CSI[CSI.size() - 1].getFrameIdx();
+  }
+
+  if ((FrameIndex >= MinCSFI && FrameIndex <= MaxCSFI)) {
+    FrameReg = RISCV::X2;
+    Offset += MF.getFrameInfo().getStackSize();
+  } else {
+    FrameReg = getFrameRegister(MF);
+  }
+
+  unsigned Reg = MI.getOperand(0).getReg();
+  assert(RISCV::GPRRegClass.contains(Reg) && "Unexpected register operand");
 
   assert(TFI->hasFP(MF) && "eliminateFrameIndex currently requires hasFP");
 
@@ -80,8 +101,30 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
         "Frame offsets outside of the signed 12-bit range not supported");
   }
 
-  MI.getOperand(FIOperandNum).ChangeToRegister(FrameReg, false);
-  MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
+  MachineBasicBlock &MBB = *MI.getParent();
+  switch (MI.getOpcode()) {
+  case RISCV::LW_FI:
+    BuildMI(MBB, II, DL, TII->get(RISCV::LW), Reg)
+        .addReg(FrameReg)
+        .addImm(Offset);
+    break;
+  case RISCV::SW_FI:
+    BuildMI(MBB, II, DL, TII->get(RISCV::SW))
+        .addReg(Reg, getKillRegState(MI.getOperand(0).isKill()))
+        .addReg(FrameReg)
+        .addImm(Offset);
+    break;
+  case RISCV::LEA_FI:
+    BuildMI(MBB, II, DL, TII->get(RISCV::ADDI), Reg)
+        .addReg(FrameReg)
+        .addImm(Offset);
+    break;
+  default:
+    llvm_unreachable("Unexpected opcode");
+  }
+
+  // Erase old instruction.
+  MBB.erase(II);
 }
 
 unsigned RISCVRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
