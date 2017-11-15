@@ -65,7 +65,6 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   RISCVMachineFunctionInfo *RVFI = MF.getInfo<RISCVMachineFunctionInfo>();
   MachineFrameInfo &MFI = MF.getFrameInfo();
   MachineRegisterInfo &MRI = MF.getRegInfo();
-  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   DebugLoc DL = MI.getDebugLoc();
 
@@ -86,18 +85,19 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     MaxCSFI = CSI[CSI.size() - 1].getFrameIdx();
   }
 
-  if ((FrameIndex >= MinCSFI && FrameIndex <= MaxCSFI)) {
+  if (FrameIndex >= MinCSFI && FrameIndex <= MaxCSFI) {
     FrameReg = RISCV::X2;
     Offset += MF.getFrameInfo().getStackSize();
   } else {
     FrameReg = getFrameRegister(MF);
-    Offset += RVFI->getVarArgsSaveSize();
+    if (getFrameLowering(MF)->hasFP(MF))
+      Offset += RVFI->getVarArgsSaveSize();
+    else
+      Offset += MF.getFrameInfo().getStackSize();
   }
 
   unsigned Reg = MI.getOperand(0).getReg();
   assert(RISCV::GPRRegClass.contains(Reg) && "Unexpected register operand");
-
-  assert(TFI->hasFP(MF) && "eliminateFrameIndex currently requires hasFP");
 
   if (!isInt<32>(Offset)) {
     report_fatal_error(
@@ -151,7 +151,8 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 }
 
 unsigned RISCVRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  return RISCV::X8;
+  const TargetFrameLowering *TFI = getFrameLowering(MF);
+  return TFI->hasFP(MF) ? RISCV::X8 : RISCV::X2;
 }
 
 const uint32_t *
