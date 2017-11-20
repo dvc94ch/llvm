@@ -137,7 +137,9 @@ void DwarfCFIException::beginFragment(const MachineBasicBlock *MBB,
     return;
 
   if (!hasEmittedCFISections) {
-    if (Asm->needsOnlyDebugCFIMoves())
+    if (!Asm->needsOnlyDebugCFIMoves())
+      Asm->OutStreamer->EmitCFISections(true, true);
+    else
       Asm->OutStreamer->EmitCFISections(false, true);
     hasEmittedCFISections = true;
   }
