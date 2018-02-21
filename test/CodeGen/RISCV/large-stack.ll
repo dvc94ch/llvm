@@ -32,7 +32,7 @@ define void @test() nounwind {
 ; RV32I-NEXT:    lui a0, 74565
 ; RV32I-NEXT:    addi a0, a0, 1680
 ; RV32I-NEXT:    add sp, sp, a0
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
   %tmp = alloca [ 305419896 x i8 ] , align 4
   ret void
 }
@@ -70,7 +70,7 @@ define void @test_emergency_spill_slot(i32 %a) nounwind {
 ; RV32I-NEXT:    lui a2, 1048478
 ; RV32I-NEXT:    addi a2, a2, 1388
 ; RV32I-NEXT:    add a2, s0, a2
-; RV32I-NEXT:    addi a2, a2, 0
+; RV32I-NEXT:    mv a2, a2
 ; RV32I-NEXT:    add a1, a2, a1
 ; RV32I-NEXT:    #APP
 ; RV32I-NEXT:    nop
@@ -98,7 +98,7 @@ define void @test_emergency_spill_slot(i32 %a) nounwind {
 ; RV32I-NEXT:    lui a0, 98
 ; RV32I-NEXT:    addi a0, a0, -1376
 ; RV32I-NEXT:    add sp, sp, a0
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
   %data = alloca [ 100000 x i32 ] , align 4
   %ptr = getelementptr inbounds [100000 x i32], [100000 x i32]* %data, i32 0, i32 80000
   %1 = tail call { i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32 } asm sideeffect "nop", "=r,=r,=r,=r,=r,=r,=r,=r,=r,=r,=r,=r,=r,=r,=r"()

@@ -19,11 +19,11 @@ define i32 @test() nounwind {
 ; RV32I-NEXT:    lui a0, %hi(test1)
 ; RV32I-NEXT:    addi a1, a0, %lo(test1)
 ; RV32I-NEXT:    addi a0, sp, 12
-; RV32I-NEXT:    jalr ra, a1, 0
-; RV32I-NEXT:    addi a0, zero, 0
+; RV32I-NEXT:    jalr a1
+; RV32I-NEXT:    mv a0, zero
 ; RV32I-NEXT:    lw ra, 28(sp)
 ; RV32I-NEXT:    addi sp, sp, 32
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
 ;
 ; RV32I-FPTR-LABEL: test:
 ; RV32I-FPTR:       # %bb.0:
@@ -39,12 +39,12 @@ define i32 @test() nounwind {
 ; RV32I-FPTR-NEXT:    lui a0, %hi(test1)
 ; RV32I-FPTR-NEXT:    addi a1, a0, %lo(test1)
 ; RV32I-FPTR-NEXT:    addi a0, s0, -28
-; RV32I-FPTR-NEXT:    jalr ra, a1, 0
-; RV32I-FPTR-NEXT:    addi a0, zero, 0
+; RV32I-FPTR-NEXT:    jalr a1
+; RV32I-FPTR-NEXT:    mv a0, zero
 ; RV32I-FPTR-NEXT:    lw s0, 24(sp)
 ; RV32I-FPTR-NEXT:    lw ra, 28(sp)
 ; RV32I-FPTR-NEXT:    addi sp, sp, 32
-; RV32I-FPTR-NEXT:    jalr zero, ra, 0
+; RV32I-FPTR-NEXT:    ret
 
   %key = alloca %struct.key_t, align 4
   %1 = bitcast %struct.key_t* %key to i8*

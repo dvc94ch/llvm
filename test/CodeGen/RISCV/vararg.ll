@@ -31,7 +31,7 @@ define i32 @va1(i8* %fmt, ...) nounwind {
 ; RV32I-NEXT:    lw s0, 8(sp)
 ; RV32I-NEXT:    lw ra, 12(sp)
 ; RV32I-NEXT:    addi sp, sp, 48
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
   %va = alloca i8*, align 4
   %1 = bitcast i8** %va to i8*
   call void @llvm.va_start(i8* %1)
@@ -64,7 +64,7 @@ define i32 @va1_va_arg(i8* %fmt, ...) nounwind {
 ; RV32I-NEXT:    lw s0, 8(sp)
 ; RV32I-NEXT:    lw ra, 12(sp)
 ; RV32I-NEXT:    addi sp, sp, 48
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
   %va = alloca i8*, align 4
   %1 = bitcast i8** %va to i8*
   call void @llvm.va_start(i8* %1)
@@ -96,17 +96,17 @@ define i32 @va1_va_arg_alloca(i8* %fmt, ...) nounwind {
 ; RV32I-NEXT:    addi a0, s1, 15
 ; RV32I-NEXT:    andi a0, a0, -16
 ; RV32I-NEXT:    sub a0, sp, a0
-; RV32I-NEXT:    addi sp, a0, 0
+; RV32I-NEXT:    mv sp, a0
 ; RV32I-NEXT:    lui a1, %hi(notdead)
 ; RV32I-NEXT:    addi a1, a1, %lo(notdead)
-; RV32I-NEXT:    jalr ra, a1, 0
-; RV32I-NEXT:    addi a0, s1, 0
+; RV32I-NEXT:    jalr a1
+; RV32I-NEXT:    mv a0, s1
 ; RV32I-NEXT:    addi sp, s0, -16
 ; RV32I-NEXT:    lw s1, 4(sp)
 ; RV32I-NEXT:    lw s0, 8(sp)
 ; RV32I-NEXT:    lw ra, 12(sp)
 ; RV32I-NEXT:    addi sp, sp, 48
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
   %va = alloca i8*, align 4
   %1 = bitcast i8** %va to i8*
   call void @llvm.va_start(i8* %1)
@@ -125,16 +125,16 @@ define void @va1_caller() nounwind {
 ; RV32I-NEXT:    sw s0, 8(sp)
 ; RV32I-NEXT:    addi s0, sp, 16
 ; RV32I-NEXT:    lui a0, 261888
-; RV32I-NEXT:    addi a3, a0, 0
+; RV32I-NEXT:    mv a3, a0
 ; RV32I-NEXT:    lui a0, %hi(va1)
 ; RV32I-NEXT:    addi a0, a0, %lo(va1)
 ; RV32I-NEXT:    addi a4, zero, 2
-; RV32I-NEXT:    addi a2, zero, 0
-; RV32I-NEXT:    jalr ra, a0, 0
+; RV32I-NEXT:    mv a2, zero
+; RV32I-NEXT:    jalr a0
 ; RV32I-NEXT:    lw s0, 8(sp)
 ; RV32I-NEXT:    lw ra, 12(sp)
 ; RV32I-NEXT:    addi sp, sp, 16
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
 ; Pass a double, as a float would be promoted by a C/C++ frontend
   %1 = call i32 (i8*, ...) @va1(i8* undef, double 1.0, i32 2)
   ret void
@@ -167,7 +167,7 @@ define double @va2(i8 *%fmt, ...) nounwind {
 ; RV32I-NEXT:    lw s0, 8(sp)
 ; RV32I-NEXT:    lw ra, 12(sp)
 ; RV32I-NEXT:    addi sp, sp, 48
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
   %va = alloca i8*, align 4
   %1 = bitcast i8** %va to i8*
   call void @llvm.va_start(i8* %1)
@@ -209,7 +209,7 @@ define double @va2_va_arg(i8 *%fmt, ...) nounwind {
 ; RV32I-NEXT:    lw s0, 8(sp)
 ; RV32I-NEXT:    lw ra, 12(sp)
 ; RV32I-NEXT:    addi sp, sp, 48
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
   %va = alloca i8*, align 4
   %1 = bitcast i8** %va to i8*
   call void @llvm.va_start(i8* %1)
@@ -226,15 +226,15 @@ define void @va2_caller() nounwind {
 ; RV32I-NEXT:    sw s0, 8(sp)
 ; RV32I-NEXT:    addi s0, sp, 16
 ; RV32I-NEXT:    lui a0, 261888
-; RV32I-NEXT:    addi a3, a0, 0
+; RV32I-NEXT:    mv a3, a0
 ; RV32I-NEXT:    lui a0, %hi(va2)
 ; RV32I-NEXT:    addi a0, a0, %lo(va2)
-; RV32I-NEXT:    addi a2, zero, 0
-; RV32I-NEXT:    jalr ra, a0, 0
+; RV32I-NEXT:    mv a2, zero
+; RV32I-NEXT:    jalr a0
 ; RV32I-NEXT:    lw s0, 8(sp)
 ; RV32I-NEXT:    lw ra, 12(sp)
 ; RV32I-NEXT:    addi sp, sp, 16
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
  %1 = call double (i8*, ...) @va2(i8* undef, double 1.000000e+00)
  ret void
 }
@@ -249,8 +249,8 @@ define double @va3(i32 %a, double %b, ...) nounwind {
 ; RV32I-NEXT:    sw ra, 20(sp)
 ; RV32I-NEXT:    sw s0, 16(sp)
 ; RV32I-NEXT:    addi s0, sp, 24
-; RV32I-NEXT:    addi t0, a2, 0
-; RV32I-NEXT:    addi a0, a1, 0
+; RV32I-NEXT:    mv t0, a2
+; RV32I-NEXT:    mv a0, a1
 ; RV32I-NEXT:    sw a7, 20(s0)
 ; RV32I-NEXT:    sw a6, 16(s0)
 ; RV32I-NEXT:    sw a5, 12(s0)
@@ -265,12 +265,12 @@ define double @va3(i32 %a, double %b, ...) nounwind {
 ; RV32I-NEXT:    lw a2, 0(a1)
 ; RV32I-NEXT:    ori a1, a1, 4
 ; RV32I-NEXT:    lw a3, 0(a1)
-; RV32I-NEXT:    addi a1, t0, 0
-; RV32I-NEXT:    jalr ra, a4, 0
+; RV32I-NEXT:    mv a1, t0
+; RV32I-NEXT:    jalr a4
 ; RV32I-NEXT:    lw s0, 16(sp)
 ; RV32I-NEXT:    lw ra, 20(sp)
 ; RV32I-NEXT:    addi sp, sp, 48
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
   %va = alloca i8*, align 4
   %1 = bitcast i8** %va to i8*
   call void @llvm.va_start(i8* %1)
@@ -295,8 +295,8 @@ define double @va3_va_arg(i32 %a, double %b, ...) nounwind {
 ; RV32I-NEXT:    sw ra, 20(sp)
 ; RV32I-NEXT:    sw s0, 16(sp)
 ; RV32I-NEXT:    addi s0, sp, 24
-; RV32I-NEXT:    addi t0, a2, 0
-; RV32I-NEXT:    addi a0, a1, 0
+; RV32I-NEXT:    mv t0, a2
+; RV32I-NEXT:    mv a0, a1
 ; RV32I-NEXT:    sw a7, 20(s0)
 ; RV32I-NEXT:    sw a6, 16(s0)
 ; RV32I-NEXT:    sw a5, 12(s0)
@@ -312,12 +312,12 @@ define double @va3_va_arg(i32 %a, double %b, ...) nounwind {
 ; RV32I-NEXT:    lui a1, %hi(__adddf3)
 ; RV32I-NEXT:    addi a4, a1, %lo(__adddf3)
 ; RV32I-NEXT:    lw a3, 0(a3)
-; RV32I-NEXT:    addi a1, t0, 0
-; RV32I-NEXT:    jalr ra, a4, 0
+; RV32I-NEXT:    mv a1, t0
+; RV32I-NEXT:    jalr a4
 ; RV32I-NEXT:    lw s0, 16(sp)
 ; RV32I-NEXT:    lw ra, 20(sp)
 ; RV32I-NEXT:    addi sp, sp, 48
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
   %va = alloca i8*, align 4
   %1 = bitcast i8** %va to i8*
   call void @llvm.va_start(i8* %1)
@@ -335,19 +335,19 @@ define void @va3_caller() nounwind {
 ; RV32I-NEXT:    sw s0, 8(sp)
 ; RV32I-NEXT:    addi s0, sp, 16
 ; RV32I-NEXT:    lui a0, 261888
-; RV32I-NEXT:    addi a2, a0, 0
+; RV32I-NEXT:    mv a2, a0
 ; RV32I-NEXT:    lui a0, 262144
-; RV32I-NEXT:    addi a5, a0, 0
+; RV32I-NEXT:    mv a5, a0
 ; RV32I-NEXT:    lui a0, %hi(va3)
 ; RV32I-NEXT:    addi a3, a0, %lo(va3)
 ; RV32I-NEXT:    addi a0, zero, 2
-; RV32I-NEXT:    addi a1, zero, 0
-; RV32I-NEXT:    addi a4, zero, 0
-; RV32I-NEXT:    jalr ra, a3, 0
+; RV32I-NEXT:    mv a1, zero
+; RV32I-NEXT:    mv a4, zero
+; RV32I-NEXT:    jalr a3
 ; RV32I-NEXT:    lw s0, 8(sp)
 ; RV32I-NEXT:    lw ra, 12(sp)
 ; RV32I-NEXT:    addi sp, sp, 16
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
  %1 = call double (i32, double, ...) @va3(i32 2, double 1.000000e+00, double 2.000000e+00)
  ret void
 }
@@ -375,7 +375,7 @@ define i32 @va4_va_copy(i32 %argno, ...) nounwind {
 ; RV32I-NEXT:    lw s1, 4(s0)
 ; RV32I-NEXT:    lui a1, %hi(notdead)
 ; RV32I-NEXT:    addi a1, a1, %lo(notdead)
-; RV32I-NEXT:    jalr ra, a1, 0
+; RV32I-NEXT:    jalr a1
 ; RV32I-NEXT:    lw a0, -16(s0)
 ; RV32I-NEXT:    addi a0, a0, 3
 ; RV32I-NEXT:    andi a0, a0, -4
@@ -399,7 +399,7 @@ define i32 @va4_va_copy(i32 %argno, ...) nounwind {
 ; RV32I-NEXT:    lw s0, 24(sp)
 ; RV32I-NEXT:    lw ra, 28(sp)
 ; RV32I-NEXT:    addi sp, sp, 64
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
   %vargs = alloca i8*, align 4
   %wargs = alloca i8*, align 4
   %1 = bitcast i8** %vargs to i8*
@@ -440,7 +440,7 @@ define i32 @va5_aligned_stack_callee(i32 %a, ...) nounwind {
 ; RV32I-NEXT:    lw s0, 8(sp)
 ; RV32I-NEXT:    lw ra, 12(sp)
 ; RV32I-NEXT:    addi sp, sp, 48
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
   ret i32 1
 }
 
@@ -489,11 +489,11 @@ define void @va5_aligned_stack_caller() nounwind {
 ; RV32I-NEXT:    addi a3, zero, 12
 ; RV32I-NEXT:    addi a4, zero, 13
 ; RV32I-NEXT:    addi a7, zero, 4
-; RV32I-NEXT:    jalr ra, a5, 0
+; RV32I-NEXT:    jalr a5
 ; RV32I-NEXT:    lw s0, 56(sp)
 ; RV32I-NEXT:    lw ra, 60(sp)
 ; RV32I-NEXT:    addi sp, sp, 64
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
   %1 = call i32 (i32, ...) @va5_aligned_stack_callee(i32 1, i32 11,
     fp128 0xLEB851EB851EB851F400091EB851EB851, i32 12, i32 13, i64 20000000000,
     i32 14, double 2.720000e+00, i32 15, [2 x i32] [i32 16, i32 17])
@@ -525,7 +525,7 @@ define i32 @va6_no_fixed_args(...) nounwind {
 ; RV32I-NEXT:    lw s0, 8(sp)
 ; RV32I-NEXT:    lw ra, 12(sp)
 ; RV32I-NEXT:    addi sp, sp, 48
-; RV32I-NEXT:    jalr zero, ra, 0
+; RV32I-NEXT:    ret
   %va = alloca i8*, align 4
   %1 = bitcast i8** %va to i8*
   call void @llvm.va_start(i8* %1)
